@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "880503595908",
+    "firebase_url": "https://uberedmtrider.firebaseio.com",
+    "project_id": "uberedmtrider",
+    "storage_bucket": "uberedmtrider.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:880503595908:android:808f27c5a508fc448db3d1",
+        "android_client_info": {
+          "package_name": "com.anonymous.uberedmtrider"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "880503595908-1tbnfd7cknmjc9f6mcg3nddfl2sqi5tu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.anonymous.uberedmtrider",
+            "certificate_hash": "5d11faab959f24005519536c2bb9661bb31a4451"
+          }
+        },
+        {
+          "client_id": "880503595908-r7qnc0n4esrhicpdb81hdl66n4uggqqa.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0DM524s5jo0Li0BhvELLB7XPIR4_v4Jw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "880503595908-r7qnc0n4esrhicpdb81hdl66n4uggqqa.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
