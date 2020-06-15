@@ -105,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void onSuccess(AuthResult authResult) {
                                 waitingDialog.dismiss();
-                                startActivity(new Intent(MainActivity.this, home.class));
+                                startActivity(new Intent(MainActivity.this, Home.class));
                                 finish();
                             }
                         }).addOnFailureListener(new OnFailureListener() {
