@@ -289,7 +289,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
     }
 
     private void findDriver() {
-        DatabaseReference drivers = FirebaseDatabase.getInstance().getReference().child(Common.driver_tbl);
+        DatabaseReference drivers = FirebaseDatabase.getInstance().getReference(Common.driver_tbl);
         GeoFire gfDrivers = new GeoFire(drivers);
 
         GeoQuery geoQuery = gfDrivers.queryAtLocation(new GeoLocation(mcurrentLocation.getLatitude(),mcurrentLocation.getLongitude()), radius);
@@ -374,7 +374,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
 
         geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
             @Override
-            public void onKeyEntered(String key, GeoLocation location) {
+            public void onKeyEntered(String key, final GeoLocation location) {
                 //Use key to get email from node Users
                 FirebaseDatabase.getInstance().getReference(Common.user_driver_tbl)
                         .child(key)
@@ -385,12 +385,13 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
                                 Rider rider = dataSnapshot.getValue(Rider.class);
 
                                 //Add driver to map
-                                mMap.addMarker(new MarkerOptions()
-                                        .position(new LatLng(mcurrentLocation.getLatitude(), mcurrentLocation.getLongitude()))
-                                        .flat(true)
-                                        .title(rider.getName())
-                                        .snippet("Phone: " + rider.getPhone())
-                                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.car)));
+                                    mMap.addMarker(new MarkerOptions()
+                                            .position(new LatLng(location.latitude, location.longitude))
+                                            .flat(true)
+                                            .title("Name: " + (rider != null ? rider.getName() : null))
+                                            .snippet("Phone: " + (rider != null ? rider.getPhone() : null))
+                                            .icon(BitmapDescriptorFactory.fromResource(R.drawable.car)));
+                                
                             }
 
                             @Override

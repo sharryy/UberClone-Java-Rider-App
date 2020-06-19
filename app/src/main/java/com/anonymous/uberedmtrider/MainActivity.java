@@ -13,6 +13,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 
+import com.anonymous.uberedmtrider.Common.Common;
 import com.anonymous.uberedmtrider.Model.Rider;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -22,6 +23,8 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.rengwuxian.materialedittext.MaterialEditText;
+
+import java.util.Objects;
 
 import dmax.dialog.SpotsDialog;
 
@@ -42,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
 
         auth = FirebaseAuth.getInstance();
         db = FirebaseDatabase.getInstance();
-        users = db.getReference("Riders");
+        users = db.getReference(Common.user_rider_tbl);
 
         btnRegister = (Button) findViewById(R.id.btnRegister);
         btnSignIn = (Button) findViewById(R.id.btn_sign_in);
@@ -165,6 +168,10 @@ public class MainActivity extends AppCompatActivity {
                     Snackbar.make(rootLayout, "Please Enter Phone Number", Snackbar.LENGTH_SHORT).show();
                     return;
                 }
+                if (TextUtils.isEmpty(edtName.getText().toString().trim())) {
+                    Snackbar.make(rootLayout, "Please Enter Name", Snackbar.LENGTH_SHORT).show();
+                    return;
+                }
 
                 auth.createUserWithEmailAndPassword(edtEmail.getText().toString().trim(), edtPassword.getText().toString().trim())
                         .addOnSuccessListener(new OnSuccessListener<AuthResult>() {
@@ -173,7 +180,7 @@ public class MainActivity extends AppCompatActivity {
                                 //Save User To DB
                                 Rider rider = new Rider();
                                 rider.setEmail(edtEmail.getText().toString().trim());
-                                rider.setName(edtName.getText().toString().trim());
+                                rider.setName(Objects.requireNonNull(edtName.getText()).toString());
                                 rider.setPhone(edtPhone.getText().toString().trim());
                                 rider.setPassword(edtPassword.getText().toString().trim());
 
