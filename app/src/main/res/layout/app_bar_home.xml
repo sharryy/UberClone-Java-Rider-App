@@ -42,40 +42,30 @@
                 android:orientation="horizontal"
                 android:weightSum="6">
 
+
                 <ImageView
                     android:layout_width="0dp"
-                    android:layout_gravity="center_vertical"
                     android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginRight="15dp"
                     android:layout_weight="1"
                     android:src="@drawable/ic_pin_drop_black_24dp" />
 
-                <EditText
-                    android:id="@+id/pickup_edit"
+                <fragment
+                    android:id="@+id/autocomplete_fragment_pickup"
+                    android:name="com.google.android.libraries.places.widget.AutocompleteSupportFragment"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="10dp"
-                    android:layout_weight="5"
-                    android:hint="PickUp Location" />
-
-                <Button
-                    android:id="@+id/btnPickup"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:layout_marginRight="30dp"
-                    android:layout_weight="1"
-                    android:text="GO" />
-
+                    android:layout_height="wrap_content" />
 
             </LinearLayout>
-            
+
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginLeft="16dp"
                 android:layout_marginRight="16dp"
-                android:background="@color/dividerColor"/>
-            
+                android:background="@color/dividerColor" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -84,27 +74,18 @@
 
                 <ImageView
                     android:layout_width="0dp"
-                    android:layout_gravity="center_vertical"
                     android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginRight="15dp"
                     android:layout_weight="1"
                     android:src="@drawable/ic_map_black_24dp" />
 
-                <EditText
-                    android:id="@+id/dest_edit"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="10dp"
-                    android:layout_weight="5"
-                    android:hint="Destination Location" />
 
-                <Button
-                    android:id="@+id/btnDest"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:layout_marginRight="30dp"
-                    android:layout_weight="1"
-                    android:text="GO" />
+                <fragment
+                    android:id="@+id/autocomplete_fragment_dest"
+                    android:name="com.google.android.libraries.places.widget.AutocompleteSupportFragment"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
 
 
             </LinearLayout>

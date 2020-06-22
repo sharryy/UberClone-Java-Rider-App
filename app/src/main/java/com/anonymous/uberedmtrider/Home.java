@@ -3,7 +3,6 @@ package com.anonymous.uberedmtrider;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
@@ -12,12 +11,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
@@ -59,9 +56,9 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.libraries.places.api.Places;
 import com.google.android.libraries.places.api.model.Place;
-import com.google.android.libraries.places.widget.Autocomplete;
-import com.google.android.libraries.places.widget.AutocompleteActivity;
-import com.google.android.libraries.places.widget.model.AutocompleteActivityMode;
+import com.google.android.libraries.places.api.net.PlacesClient;
+import com.google.android.libraries.places.widget.AutocompleteSupportFragment;
+import com.google.android.libraries.places.widget.listener.PlaceSelectionListener;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
@@ -76,7 +73,6 @@ import com.nabinbhandari.android.permissions.Permissions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -108,12 +104,12 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
 
     SupportMapFragment mapFragment;
     Button btnPickup, btnDest;
-    EditText pickupEdit, destEdit;
 
     //Bottom Sheet
     Button btnPickupRequest;
     ImageView imgExpandable;
     BottomSheetRiderFragment mBottomSheet;
+    String mPlaceLocation, mPlaceDestination;
 
     boolean isDriverFound = false;
     String driverId = "";
@@ -127,23 +123,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
     //Presense System
     DatabaseReference driversAvailable;
 
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == PLACES_REQUEST_CODE && resultCode == RESULT_OK) {
-            Place place = Autocomplete.getPlaceFromIntent(data);
-
-            //Set Address on EditText
-            pickupEdit.setText(place.getAddress());
-            destEdit.setText(place.getAddress());
-        } else if (resultCode == AutocompleteActivity.RESULT_ERROR) {
-
-            //Initialize status
-            Status status = Autocomplete.getStatusFromIntent(data);
-            Toast.makeText(this, status.getStatusMessage(), Toast.LENGTH_SHORT).show();
-        }
-    }
+    PlacesClient placesClient;
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -165,31 +145,58 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
 
         mService = Common.getFCMService();
 
-        btnPickup = findViewById(R.id.btnPickup);
-        btnDest = findViewById(R.id.btnDest);
+        if (!Places.isInitialized())
+            Places.initialize(getApplicationContext(), "AIzaSyD-zGdGwq3kmBlgXipYTuUUNoEBuXYC6DQ");
 
-        pickupEdit = findViewById(R.id.pickup_edit);
-        destEdit = findViewById(R.id.dest_edit);
+        placesClient = Places.createClient(this);
+        final AutocompleteSupportFragment autocompleteSupportFragment = (AutocompleteSupportFragment)
+                getSupportFragmentManager().findFragmentById(R.id.autocomplete_fragment_pickup);
 
-        Places.initialize(getApplicationContext(), "AIzaSyD-zGdGwq3kmBlgXipYTuUUNoEBuXYC6DQ");
-        destEdit.setFocusable(false);
-        pickupEdit.setFocusable(false);
 
-        pickupEdit.setOnClickListener(new View.OnClickListener() {
+        autocompleteSupportFragment.setPlaceFields(Arrays.asList(Place.Field.ID, Place.Field.LAT_LNG, Place.Field.NAME));
+        autocompleteSupportFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
             @Override
-            public void onClick(View v) {
-                List<Place.Field> fieldList = Arrays.asList(Place.Field.ADDRESS, Place.Field.LAT_LNG, Place.Field.NAME);
-                Intent intent = new Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fieldList).build(Home.this);
-                startActivityForResult(intent, PLACES_REQUEST_CODE);
+            public void onPlaceSelected(@NonNull Place place) {
+                final LatLng latLng_pickup = place.getLatLng();
+                mPlaceLocation = place.getAddress();
+
+                if (mMap != null)
+                    mMap.clear();
+
+                mUserMarker = mMap.addMarker(new MarkerOptions().position(latLng_pickup)
+                        .icon(BitmapDescriptorFactory.defaultMarker()).title("PickUp Here!"));
+
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng_pickup, 15.0f));
+            }
+
+            @Override
+            public void onError(@NonNull Status status) {
+
             }
         });
 
-        destEdit.setOnClickListener(new View.OnClickListener() {
+        final AutocompleteSupportFragment autocompleteSupportFragment_dest = (AutocompleteSupportFragment)
+                getSupportFragmentManager().findFragmentById(R.id.autocomplete_fragment_dest);
+
+        autocompleteSupportFragment_dest.setPlaceFields(Arrays.asList(Place.Field.ID, Place.Field.LAT_LNG, Place.Field.NAME));
+        autocompleteSupportFragment_dest.setOnPlaceSelectedListener(new PlaceSelectionListener() {
             @Override
-            public void onClick(View v) {
-                List<Place.Field> fieldList = Arrays.asList(Place.Field.ADDRESS, Place.Field.LAT_LNG, Place.Field.NAME);
-                Intent intent = new Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fieldList).build(Home.this);
-                startActivityForResult(intent, PLACES_REQUEST_CODE);
+            public void onPlaceSelected(@NonNull Place place) {
+                final LatLng latLng_pickup = place.getLatLng();
+                mPlaceDestination = place.getAddress();
+
+                mUserMarker = mMap.addMarker(new MarkerOptions().position(latLng_pickup)
+                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng_pickup, 15.0f));
+
+                BottomSheetRiderFragment mBottomSheet = BottomSheetRiderFragment.newInstance(mPlaceLocation, mPlaceDestination);
+                mBottomSheet.show(getSupportFragmentManager(), mBottomSheet.getTag());
+            }
+
+            @Override
+            public void onError(@NonNull Status status) {
+
             }
         });
 
@@ -218,13 +225,6 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
         geoFire = new GeoFire(ref);
 
         imgExpandable = (ImageView) findViewById(R.id.imgExpandable);
-        mBottomSheet = BottomSheetRiderFragment.newInstance("Rider bottom sheet");
-        imgExpandable.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mBottomSheet.show(getSupportFragmentManager(), mBottomSheet.getTag());
-            }
-        });
 
         btnPickupRequest = (Button) findViewById(R.id.btnPickupRequest);
         btnPickupRequest.setOnClickListener(new View.OnClickListener() {
@@ -233,8 +233,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
                 if (!isDriverFound) {
                     requestPickupHere(FirebaseAuth.getInstance().getCurrentUser().getUid());
                     Log.d("TAG", "Something Happening: ");
-                }
-                else
+                } else
                     sendRequestToDriver(driverId);
             }
         });
@@ -466,7 +465,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
         mMap.clear();
 
         mMap.addMarker(new MarkerOptions().position(new LatLng(mcurrentLocation.getLatitude(), mcurrentLocation.getLongitude()))
-        .title("You"));
+                .title("You"));
 
         //Load ALl Available drivers in 3km
         DatabaseReference driverLocation = FirebaseDatabase.getInstance().getReference(Common.driver_tbl);
