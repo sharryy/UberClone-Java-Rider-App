@@ -16,13 +16,24 @@ public class MyFirebaseMessaging extends FirebaseMessagingService {
 
     @Override
     public void onMessageReceived(@NonNull RemoteMessage remoteMessage) {
-        Handler handler = new Handler(Looper.getMainLooper());
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(MyFirebaseMessaging.this, ""+remoteMessage.getNotification().getBody(), Toast.LENGTH_SHORT).show();
-            }
-        });
+        if(remoteMessage.getNotification().getTitle().equals("Cancel")){
+            Handler handler = new Handler(Looper.getMainLooper());
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(MyFirebaseMessaging.this, ""+remoteMessage.getNotification().getBody(), Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        else if(remoteMessage.getNotification().getTitle().equals("Arrived")){
+
+            showArrivedNotification(remoteMessage.getNotification().getBody());
+
+        }
+    }
+
+    private void showArrivedNotification(String body) {
+
     }
 
 }
