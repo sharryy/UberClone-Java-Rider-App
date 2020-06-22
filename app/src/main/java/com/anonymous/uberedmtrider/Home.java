@@ -21,7 +21,10 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.PermissionChecker;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
+import androidx.navigation.ui.NavigationUI;
 
 import com.anonymous.uberedmtrider.Common.Common;
 import com.anonymous.uberedmtrider.Helper.CustomInfoWindow;
@@ -43,6 +46,7 @@ import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.places.AutocompleteFilter;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -102,14 +106,15 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
     DatabaseReference ref;
     GeoFire geoFire;
 
+
     SupportMapFragment mapFragment;
-    Button btnPickup, btnDest;
+    AutocompleteFilter typeFilter;
 
     //Bottom Sheet
     Button btnPickupRequest;
     ImageView imgExpandable;
     BottomSheetRiderFragment mBottomSheet;
-    String mPlaceLocation, mPlaceDestination;
+    String mPlaceLocation, mPlaceDestination = "";
 
     boolean isDriverFound = false;
     String driverId = "";
@@ -123,6 +128,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
     //Presense System
     DatabaseReference driversAvailable;
 
+    //AutoComplete Places
     PlacesClient placesClient;
 
     @Override
@@ -149,24 +155,26 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
             Places.initialize(getApplicationContext(), "AIzaSyD-zGdGwq3kmBlgXipYTuUUNoEBuXYC6DQ");
 
         placesClient = Places.createClient(this);
+
         final AutocompleteSupportFragment autocompleteSupportFragment = (AutocompleteSupportFragment)
                 getSupportFragmentManager().findFragmentById(R.id.autocomplete_fragment_pickup);
+        final AutocompleteSupportFragment autocompleteSupportFragment_dest = (AutocompleteSupportFragment)
+                getSupportFragmentManager().findFragmentById(R.id.autocomplete_fragment_dest);
 
 
-        autocompleteSupportFragment.setPlaceFields(Arrays.asList(Place.Field.ID, Place.Field.LAT_LNG, Place.Field.NAME));
+        autocompleteSupportFragment.setPlaceFields(Arrays.asList(Place.Field.ADDRESS, Place.Field.LAT_LNG, Place.Field.NAME));
         autocompleteSupportFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
             @Override
             public void onPlaceSelected(@NonNull Place place) {
-                final LatLng latLng_pickup = place.getLatLng();
                 mPlaceLocation = place.getAddress();
 
                 if (mMap != null)
                     mMap.clear();
 
-                mUserMarker = mMap.addMarker(new MarkerOptions().position(latLng_pickup)
+                mUserMarker = mMap.addMarker(new MarkerOptions().position(place.getLatLng())
                         .icon(BitmapDescriptorFactory.defaultMarker()).title("PickUp Here!"));
 
-                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng_pickup, 15.0f));
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(place.getLatLng(), 15.0f));
             }
 
             @Override
@@ -175,23 +183,20 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
             }
         });
 
-        final AutocompleteSupportFragment autocompleteSupportFragment_dest = (AutocompleteSupportFragment)
-                getSupportFragmentManager().findFragmentById(R.id.autocomplete_fragment_dest);
-
-        autocompleteSupportFragment_dest.setPlaceFields(Arrays.asList(Place.Field.ID, Place.Field.LAT_LNG, Place.Field.NAME));
+        autocompleteSupportFragment_dest.setPlaceFields(Arrays.asList(Place.Field.ADDRESS, Place.Field.LAT_LNG, Place.Field.NAME));
         autocompleteSupportFragment_dest.setOnPlaceSelectedListener(new PlaceSelectionListener() {
             @Override
             public void onPlaceSelected(@NonNull Place place) {
-                final LatLng latLng_pickup = place.getLatLng();
                 mPlaceDestination = place.getAddress();
 
-                mUserMarker = mMap.addMarker(new MarkerOptions().position(latLng_pickup)
+                mUserMarker = mMap.addMarker(new MarkerOptions().position(place.getLatLng())
                         .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
 
-                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng_pickup, 15.0f));
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(place.getLatLng(), 15.0f));
 
                 BottomSheetRiderFragment mBottomSheet = BottomSheetRiderFragment.newInstance(mPlaceLocation, mPlaceDestination);
                 mBottomSheet.show(getSupportFragmentManager(), mBottomSheet.getTag());
+
             }
 
             @Override
@@ -199,6 +204,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
 
             }
         });
+
 
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         locationCallback = new LocationCallback();
@@ -208,8 +214,8 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
 
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         NavigationView navigationView = findViewById(R.id.nav_view);
-        // Passing each menu ID as a set of Ids because each
-        // menu should be considered as top level destinations.
+//         Passing each menu ID as a set of Ids because each
+//         menu should be considered as top level destinations.
 //        mAppBarConfiguration = new AppBarConfiguration.Builder(
 //                R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow)
 //                .setDrawerLayout(drawer)
@@ -317,7 +323,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
                     driversAvailable.addValueEventListener(new ValueEventListener() {
                         @Override
                         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                            loadAllAvailableDriver();
+                            loadAllAvailableDriver(new LatLng(mcurrentLocation.getLatitude(), mcurrentLocation.getLongitude()));
                         }
 
                         @Override
@@ -340,7 +346,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
                     //Moving Camera
                     mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(latitude, longitude), 15.0f));
 
-                    loadAllAvailableDriver();
+                    loadAllAvailableDriver(new LatLng(mcurrentLocation.getLatitude(), mcurrentLocation.getLongitude()));
 
                 } else {
                     Log.d("Error", "Can't Get Your Location: ");
@@ -399,7 +405,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
                     isDriverFound = true;
                     driverId = key;
                     btnPickupRequest.setText("CALL DRIVER");
-                    Toaster.toast("Found: " + key);
+                   // Toaster.toast("Found: " + key);
                 }
             }
 
@@ -416,9 +422,13 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
             @Override
             public void onGeoQueryReady() {
                 //if driver still not found, increment radius
-                if (!isDriverFound) {
+                if (!isDriverFound && radius < LIMIT) {
                     radius++;
                     findDriver();
+                }
+                else{
+                    Toaster.toast("No driver available near you!");
+                    btnPickupRequest.setText("REQUEST PICKUP");
                 }
 
             }
@@ -460,18 +470,18 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
         }
     }
 
-    public void loadAllAvailableDriver() {
+    public void loadAllAvailableDriver(final LatLng location) {
 
         mMap.clear();
 
-        mMap.addMarker(new MarkerOptions().position(new LatLng(mcurrentLocation.getLatitude(), mcurrentLocation.getLongitude()))
+        mMap.addMarker(new MarkerOptions().position(location)
                 .title("You"));
 
         //Load ALl Available drivers in 3km
         DatabaseReference driverLocation = FirebaseDatabase.getInstance().getReference(Common.driver_tbl);
         GeoFire gf = new GeoFire(driverLocation);
 
-        GeoQuery geoQuery = gf.queryAtLocation(new GeoLocation(mcurrentLocation.getLatitude(), mcurrentLocation.getLongitude()), distance);
+        GeoQuery geoQuery = gf.queryAtLocation(new GeoLocation(location.latitude, location.longitude), distance);
         geoQuery.removeAllListeners();
 
         geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
@@ -518,7 +528,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
             public void onGeoQueryReady() {
                 if (distance <= LIMIT) {
                     distance++;
-                    loadAllAvailableDriver();
+                    loadAllAvailableDriver(location);
                 }
 
             }
