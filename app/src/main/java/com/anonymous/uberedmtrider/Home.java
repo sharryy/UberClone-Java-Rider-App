@@ -28,7 +28,12 @@ import androidx.navigation.ui.AppBarConfiguration;
 
 import com.anonymous.uberedmtrider.Common.Common;
 import com.anonymous.uberedmtrider.Helper.CustomInfoWindow;
+import com.anonymous.uberedmtrider.Model.FCMResponse;
+import com.anonymous.uberedmtrider.Model.Notification;
 import com.anonymous.uberedmtrider.Model.Rider;
+import com.anonymous.uberedmtrider.Model.Sender;
+import com.anonymous.uberedmtrider.Model.Token;
+import com.anonymous.uberedmtrider.Remote.IFCMService;
 import com.firebase.geofire.GeoFire;
 import com.firebase.geofire.GeoLocation;
 import com.firebase.geofire.GeoQuery;
@@ -64,6 +69,8 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.gson.Gson;
 import com.nabinbhandari.android.permissions.PermissionHandler;
 import com.nabinbhandari.android.permissions.Permissions;
 
@@ -71,6 +78,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 import xdroid.toaster.Toaster;
 
 public class Home extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener
@@ -111,6 +121,12 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
     int distance = 1;
     public static final int LIMIT = 30;
 
+    //Send Alert
+    IFCMService mService;
+
+    //Presense System
+    DatabaseReference driversAvailable;
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
@@ -146,6 +162,8 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
         setSupportActionBar(toolbar);
 
         callPermissions();
+
+        mService = Common.getFCMService();
 
         btnPickup = findViewById(R.id.btnPickup);
         btnDest = findViewById(R.id.btnDest);
@@ -212,11 +230,76 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
         btnPickupRequest.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                requestPickupHere(FirebaseAuth.getInstance().getCurrentUser().getUid());
+                if (!isDriverFound) {
+                    requestPickupHere(FirebaseAuth.getInstance().getCurrentUser().getUid());
+                    Log.d("TAG", "Something Happening: ");
+                }
+                else
+                    sendRequestToDriver(driverId);
             }
         });
-
         setUpLocation();
+        updateFirebaseToken();
+    }
+
+    private void updateFirebaseToken() {
+        FirebaseDatabase db = FirebaseDatabase.getInstance();
+        DatabaseReference tokens = db.getReference(Common.token_tbl);
+
+        Token token = new Token(FirebaseInstanceId.getInstance().getToken());
+        tokens.child(FirebaseAuth.getInstance().getCurrentUser().getUid())
+                .setValue(token);
+    }
+
+    private void sendRequestToDriver(String driverId) {
+        DatabaseReference tokens = FirebaseDatabase.getInstance().getReference(Common.token_tbl);
+
+        tokens.orderByKey().equalTo(driverId)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+
+                        for (DataSnapshot postSnapShot : dataSnapshot.getChildren()) {
+                            //Get Token object from database with key
+                            Token token = postSnapShot.getValue(Token.class);
+
+                            //Make raw Payload - convert Latlng to Json
+                            String json_lat_lng = new Gson().toJson(new LatLng(mcurrentLocation.getLatitude(), mcurrentLocation.getLongitude()));
+
+                            //Sending it to Driver App and we will deserialize again...
+                            String riderToken = FirebaseInstanceId.getInstance().getToken();
+                            Notification data = new Notification(riderToken, json_lat_lng);
+
+                            //Send this class to token
+                            Sender content = new Sender(token.getToken(), data);
+
+                            mService.sendMessage(content)
+                                    .enqueue(new Callback<FCMResponse>() {
+                                        @Override
+                                        public void onResponse(Call<FCMResponse> call, Response<FCMResponse> response) {
+                                            if (response.body().success == 1) {
+                                                Toaster.toast("Request Sent");
+                                            } else {
+                                                Toaster.toast("Failed");
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onFailure(Call<FCMResponse> call, Throwable t) {
+                                            Log.d("ERROR: ", t.getMessage());
+
+                                        }
+                                    });
+
+                        }
+
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError databaseError) {
+
+                    }
+                });
     }
 
     private void displayLocation() {
@@ -230,6 +313,20 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
             @Override
             public void onSuccess(Location location) {
                 if (location != null) {
+
+                    driversAvailable = FirebaseDatabase.getInstance().getReference(Common.driver_tbl);
+                    driversAvailable.addValueEventListener(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                            loadAllAvailableDriver();
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError databaseError) {
+
+                        }
+                    });
+
                     mcurrentLocation = location;
                     final double latitude = mcurrentLocation.getLatitude();
                     final double longitude = mcurrentLocation.getLongitude();
@@ -292,7 +389,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
         DatabaseReference drivers = FirebaseDatabase.getInstance().getReference(Common.driver_tbl);
         GeoFire gfDrivers = new GeoFire(drivers);
 
-        GeoQuery geoQuery = gfDrivers.queryAtLocation(new GeoLocation(mcurrentLocation.getLatitude(),mcurrentLocation.getLongitude()), radius);
+        GeoQuery geoQuery = gfDrivers.queryAtLocation(new GeoLocation(mcurrentLocation.getLatitude(), mcurrentLocation.getLongitude()), radius);
         geoQuery.removeAllListeners();
         geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
             @SuppressLint("SetTextI18n")
@@ -365,6 +462,12 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
     }
 
     public void loadAllAvailableDriver() {
+
+        mMap.clear();
+
+        mMap.addMarker(new MarkerOptions().position(new LatLng(mcurrentLocation.getLatitude(), mcurrentLocation.getLongitude()))
+        .title("You"));
+
         //Load ALl Available drivers in 3km
         DatabaseReference driverLocation = FirebaseDatabase.getInstance().getReference(Common.driver_tbl);
         GeoFire gf = new GeoFire(driverLocation);
@@ -385,13 +488,13 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
                                 Rider rider = dataSnapshot.getValue(Rider.class);
 
                                 //Add driver to map
-                                    mMap.addMarker(new MarkerOptions()
-                                            .position(new LatLng(location.latitude, location.longitude))
-                                            .flat(true)
-                                            .title("Name: " + (rider != null ? rider.getName() : null))
-                                            .snippet("Phone: " + (rider != null ? rider.getPhone() : null))
-                                            .icon(BitmapDescriptorFactory.fromResource(R.drawable.car)));
-                                
+                                mMap.addMarker(new MarkerOptions()
+                                        .position(new LatLng(location.latitude, location.longitude))
+                                        .flat(true)
+                                        .title("Name: " + (rider != null ? rider.getName() : null))
+                                        .snippet("Phone: " + (rider != null ? rider.getPhone() : null))
+                                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.car)));
+
                             }
 
                             @Override
