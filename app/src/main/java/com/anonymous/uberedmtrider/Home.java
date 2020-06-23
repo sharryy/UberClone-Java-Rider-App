@@ -504,8 +504,8 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
 
     public void loadAllAvailableDriver(final LatLng location) {
 
-        if (mUserMarker != null)
-            mUserMarker.remove(); //remove marker
+
+        mMap.clear();
         mUserMarker = mMap.addMarker(new MarkerOptions()
                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.marker))
                 .position(location)

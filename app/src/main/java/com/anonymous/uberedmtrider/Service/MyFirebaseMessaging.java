@@ -35,7 +35,6 @@ public class MyFirebaseMessaging extends FirebaseMessagingService {
         else if(remoteMessage.getNotification().getTitle().equals("Arrived")){
 
             showArrivedNotification(remoteMessage.getNotification().getBody());
-            Toaster.toast("Hellooooooo");
 
         }
     }
