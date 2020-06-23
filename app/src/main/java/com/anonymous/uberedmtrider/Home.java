@@ -3,6 +3,7 @@ package com.anonymous.uberedmtrider;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
@@ -21,10 +22,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.PermissionChecker;
 import androidx.drawerlayout.widget.DrawerLayout;
-import androidx.navigation.NavController;
-import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
-import androidx.navigation.ui.NavigationUI;
 
 import com.anonymous.uberedmtrider.Common.Common;
 import com.anonymous.uberedmtrider.Helper.CustomInfoWindow;
@@ -60,9 +58,12 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.libraries.places.api.Places;
 import com.google.android.libraries.places.api.model.Place;
+import com.google.android.libraries.places.api.model.TypeFilter;
 import com.google.android.libraries.places.api.net.PlacesClient;
+import com.google.android.libraries.places.widget.Autocomplete;
 import com.google.android.libraries.places.widget.AutocompleteSupportFragment;
 import com.google.android.libraries.places.widget.listener.PlaceSelectionListener;
+import com.google.android.libraries.places.widget.model.AutocompleteActivityMode;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
@@ -77,6 +78,7 @@ import com.nabinbhandari.android.permissions.Permissions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -89,6 +91,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
     private static final int PLACES_REQUEST_CODE = 1010;
     private static final int MY_PERMISSION_REQUEST_CODE = 1;
     private static final int PLAY_SERVICE_RES_REQUEST = 7001;
+    private static final int AUTOCOMPLETE_REQUEST_CODE = 1111;
     private AppBarConfiguration mAppBarConfiguration;
     private GoogleMap mMap;
 
@@ -130,6 +133,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
 
     //AutoComplete Places
     PlacesClient placesClient;
+    AutocompleteSupportFragment autocompleteSupportFragment, autocompleteSupportFragment_dest;
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -156,9 +160,9 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
 
         placesClient = Places.createClient(this);
 
-        final AutocompleteSupportFragment autocompleteSupportFragment = (AutocompleteSupportFragment)
+        autocompleteSupportFragment = (AutocompleteSupportFragment)
                 getSupportFragmentManager().findFragmentById(R.id.autocomplete_fragment_pickup);
-        final AutocompleteSupportFragment autocompleteSupportFragment_dest = (AutocompleteSupportFragment)
+        autocompleteSupportFragment_dest = (AutocompleteSupportFragment)
                 getSupportFragmentManager().findFragmentById(R.id.autocomplete_fragment_dest);
 
 
@@ -205,6 +209,10 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
             }
         });
 
+        typeFilter = new AutocompleteFilter.Builder()
+                .setTypeFilter(AutocompleteFilter.TYPE_FILTER_ADDRESS)
+                .setTypeFilter(3)
+                .build();
 
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         locationCallback = new LocationCallback();
@@ -319,6 +327,10 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
             public void onSuccess(Location location) {
                 if (location != null) {
 
+                    autocompleteSupportFragment.setCountry("PK");
+                    autocompleteSupportFragment_dest.setCountry("PK");
+
+                    //Presense System
                     driversAvailable = FirebaseDatabase.getInstance().getReference(Common.driver_tbl);
                     driversAvailable.addValueEventListener(new ValueEventListener() {
                         @Override
@@ -405,7 +417,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
                     isDriverFound = true;
                     driverId = key;
                     btnPickupRequest.setText("CALL DRIVER");
-                   // Toaster.toast("Found: " + key);
+                    // Toaster.toast("Found: " + key);
                 }
             }
 
@@ -425,8 +437,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
                 if (!isDriverFound && radius < LIMIT) {
                     radius++;
                     findDriver();
-                }
-                else{
+                } else {
                     Toaster.toast("No driver available near you!");
                     btnPickupRequest.setText("REQUEST PICKUP");
                 }
