@@ -3,8 +3,8 @@ package com.anonymous.uberedmtrider;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.location.Location;
 import android.os.Bundle;
 import android.util.Log;
@@ -51,6 +51,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -58,12 +59,9 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.libraries.places.api.Places;
 import com.google.android.libraries.places.api.model.Place;
-import com.google.android.libraries.places.api.model.TypeFilter;
 import com.google.android.libraries.places.api.net.PlacesClient;
-import com.google.android.libraries.places.widget.Autocomplete;
 import com.google.android.libraries.places.widget.AutocompleteSupportFragment;
 import com.google.android.libraries.places.widget.listener.PlaceSelectionListener;
-import com.google.android.libraries.places.widget.model.AutocompleteActivityMode;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
@@ -78,7 +76,6 @@ import com.nabinbhandari.android.permissions.Permissions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -137,6 +134,18 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
+
+        try {
+            boolean isSuccess = googleMap.setMapStyle(
+                    MapStyleOptions.loadRawResourceStyle(this, R.raw.uber_style_map)
+            );
+
+            if (!isSuccess)
+                Log.d("Error: ", "Map Style Load Failed");
+        } catch (Resources.NotFoundException e) {
+            Log.d("TAG", e.getMessage());
+        }
+
         mMap = googleMap;
         mMap.getUiSettings().setZoomControlsEnabled(true);
         mMap.getUiSettings().setZoomGesturesEnabled(true);
@@ -146,18 +155,17 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
         mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
             public void onMapClick(LatLng latLng) {
-                if(markerDestination != null){
+                if (markerDestination != null) {
                     markerDestination.remove();
                 }
-                markerDestination = mMap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.defaultMarker(
-                        BitmapDescriptorFactory.HUE_BLUE
-                )).position(latLng).title("Destination"));
+                markerDestination = mMap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory
+                        .fromResource(R.drawable.destination_marker)).position(latLng).title("Destination"));
 
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15.0f));
 
                 //Showing bottom Sheet
-                BottomSheetRiderFragment mBottomSheet = BottomSheetRiderFragment.newInstance(String.format("%f,%f",mcurrentLocation.getLatitude(),mcurrentLocation.getLongitude()),
-                        String.format("%f,%f",latLng.latitude,latLng.longitude), true);
+                BottomSheetRiderFragment mBottomSheet = BottomSheetRiderFragment.newInstance(String.format("%f,%f", mcurrentLocation.getLatitude(), mcurrentLocation.getLongitude()),
+                        String.format("%f,%f", latLng.latitude, latLng.longitude), true);
                 mBottomSheet.show(getSupportFragmentManager(), mBottomSheet.getTag());
             }
         });
@@ -196,7 +204,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
                     mMap.clear();
 
                 mUserMarker = mMap.addMarker(new MarkerOptions().position(place.getLatLng())
-                        .icon(BitmapDescriptorFactory.defaultMarker()).title("PickUp Here!"));
+                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.marker)).title("PickUp Here!"));
 
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(place.getLatLng(), 15.0f));
             }
@@ -213,8 +221,10 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
             public void onPlaceSelected(@NonNull Place place) {
                 mPlaceDestination = place.getAddress();
 
-                mUserMarker = mMap.addMarker(new MarkerOptions().position(place.getLatLng())
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+                mUserMarker = mMap.addMarker(new MarkerOptions()
+                        .position(place.getLatLng())
+                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.destination_marker))
+                        .title("Destination"));
 
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(place.getLatLng(), 15.0f));
 
@@ -368,15 +378,6 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
                     final double latitude = mcurrentLocation.getLatitude();
                     final double longitude = mcurrentLocation.getLongitude();
 
-                    //Update To FireBase
-
-                    if (mUserMarker != null)
-                        mUserMarker.remove(); //remove marker
-                    mUserMarker = mMap.addMarker(new MarkerOptions()
-                            .position(new LatLng(latitude, longitude)).title("You"));
-
-                    //Moving Camera
-                    mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(latitude, longitude), 15.0f));
 
                     loadAllAvailableDriver(new LatLng(mcurrentLocation.getLatitude(), mcurrentLocation.getLongitude()));
 
@@ -503,10 +504,15 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
 
     public void loadAllAvailableDriver(final LatLng location) {
 
-        mMap.clear();
-
-        mMap.addMarker(new MarkerOptions().position(location)
+        if (mUserMarker != null)
+            mUserMarker.remove(); //remove marker
+        mUserMarker = mMap.addMarker(new MarkerOptions()
+                .icon(BitmapDescriptorFactory.fromResource(R.drawable.marker))
+                .position(location)
                 .title("You"));
+
+        //Moving Camera
+        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, 15.0f));
 
         //Load ALl Available drivers in 3km
         DatabaseReference driverLocation = FirebaseDatabase.getInstance().getReference(Common.driver_tbl);
