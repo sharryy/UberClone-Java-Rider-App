@@ -103,7 +103,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
     private LocationRequest locationRequest;
     private Location mcurrentLocation;
 
-    private Marker mUserMarker;
+    private Marker mUserMarker, markerDestination;
     private LocationCallback locationCallback;
 
     DatabaseReference ref;
@@ -141,6 +141,26 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
         mMap.getUiSettings().setZoomControlsEnabled(true);
         mMap.getUiSettings().setZoomGesturesEnabled(true);
         mMap.setInfoWindowAdapter(new CustomInfoWindow(this));
+
+        //Implementing OnClick Listener So that location can be selected by tapping on Map
+        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(LatLng latLng) {
+                if(markerDestination != null){
+                    markerDestination.remove();
+                }
+                markerDestination = mMap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.defaultMarker(
+                        BitmapDescriptorFactory.HUE_BLUE
+                )).position(latLng).title("Destination"));
+
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15.0f));
+
+                //Showing bottom Sheet
+                BottomSheetRiderFragment mBottomSheet = BottomSheetRiderFragment.newInstance(String.format("%f,%f",mcurrentLocation.getLatitude(),mcurrentLocation.getLongitude()),
+                        String.format("%f,%f",latLng.latitude,latLng.longitude), true);
+                mBottomSheet.show(getSupportFragmentManager(), mBottomSheet.getTag());
+            }
+        });
     }
 
 
@@ -198,7 +218,7 @@ public class Home extends AppCompatActivity implements NavigationView.OnNavigati
 
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(place.getLatLng(), 15.0f));
 
-                BottomSheetRiderFragment mBottomSheet = BottomSheetRiderFragment.newInstance(mPlaceLocation, mPlaceDestination);
+                BottomSheetRiderFragment mBottomSheet = BottomSheetRiderFragment.newInstance(mPlaceLocation, mPlaceDestination, false);
                 mBottomSheet.show(getSupportFragmentManager(), mBottomSheet.getTag());
 
             }
